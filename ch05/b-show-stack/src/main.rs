@@ -31,6 +31,8 @@ fn main() {
         std::ptr::write(sb_aligned.offset(-16) as *mut u64, hello as u64);
         ctx.rsp = sb_aligned.offset(-16) as u64;
 
+        // 从栈底把全栈的东西打印出来
+        // 如果对齐有实际操作的话，感觉这里的操作越界了，输出了负索引的东西
         for i in 0..SSIZE {
             println!(
                 "mem: {}, val: {}",
