@@ -17,6 +17,8 @@ async fn async_main() {
 
 fn main() {
     let fut = async_main();
+    // 和 a-coroutine 比较，主要的变化就是需要组装 context 传入 poll 方法，
+    // 并且 future 对象需要包裹在 pin 里面
     let waker = dummy_waker();
     let mut context = Context::from_waker(&waker);
     let mut pinned = Box::pin(fut);
