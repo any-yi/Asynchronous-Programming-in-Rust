@@ -13,7 +13,7 @@ coroutine fn request(i: usize) {
 }
 
 /// 标有 coroutine 的函数的返回类型将被重写为 `impl Future<Output=String>`
-future fn async_main() {
+coroutine fn async_main() {
     println!("Program starting");
     let mut futures = vec![];
 
