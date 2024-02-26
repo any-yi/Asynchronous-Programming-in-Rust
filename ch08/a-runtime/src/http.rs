@@ -52,6 +52,8 @@ impl Future for HttpGetFuture {
             self.write_request();
             
             // CHANGED
+            // 发送 HTTP 请求的同时，注册事件。
+            // 注册完后立即轮询 TcpStream，而不是返回 NotReady 。
             runtime::registry()
                 .register(self.stream.as_mut().unwrap(), Token(0), Interest::READABLE)
                 .unwrap();

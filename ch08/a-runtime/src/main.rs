@@ -7,7 +7,15 @@ use runtime::Runtime;
 
 fn main() {
     let future = async_main();
+    // Runtime 的 new 方法只完成了 epfd 的创建
     let mut runtime = Runtime::new();
+    // 事件的注册发生在初次 poll 最上层 future 的时候，最上层 future 是 async_main 代码块的别名，
+    // 进入 async_main 代码块后，会去 poll http.rs 中的 HttpGetFuture 对象（Future 对象），
+    // 而 HttpGetFuture 的 poll 方法恰好就添加了事件的注册过程。
+    //
+    // 而第 4 章的 Poll 对象的 poll 方法则封装了 epoll_wait 函数，恰好 block_on 调用的就是该 poll 方法。
+    // 调用 epoll_wait 会阻塞直到操作系统到达事件或超时。
+    // 此时阻塞的是最上层的 future ，这里的（runtime.rs 里面的）代码代替了 之前不断轮询最上层 future 的代码。
     runtime.block_on(future);
 }
 

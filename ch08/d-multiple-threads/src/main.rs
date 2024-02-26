@@ -10,6 +10,7 @@ fn main() {
     let mut executor = runtime::init();
     let mut handles = vec![];
 
+    // 把单个 Executor::new 和 block_on 变为了每个线程执行一次
     for i in 1..12 {
         let name = format!("exec-{i}");
         let h = Builder::new()
