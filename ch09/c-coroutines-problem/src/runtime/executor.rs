@@ -69,12 +69,26 @@ impl Executor {
         // ===== OPTIMIZATION, ASSUME READY
         let waker = self.get_waker(usize::MAX);
         let mut future = future;
+        // 这里的 future 代表 main.rs 里面的状态机代码。
+        // 其中 Start 状态时先是初始化了 String ，
+        // 而该初始化的 String 结构体放置在本 block_on 函数的栈上面一个单位，也即 poll 函数的栈上，
+        // 而 stack 的 writer 字段，指向的位置是该 String 位置，该位置所处的栈空间和本 block_on 函数、poll 函数是同一个栈空间。
         match future.poll(&waker) {
+            // 如果返回 NotReady，则会执行下方的 `spawn(future)` 。
             PollState::NotReady => (),
             PollState::Ready(_) => return,
         }
         // ===== END
 
+        // 此处的代码执行完， future 所代表的数据被移动到 Box（堆）中，
+        // 且 future 变量的所有权被转移到了 HashMap 里，future 变量不再可用。
+        //
+        // 但是由于 future 的特性，需要在推进到不可能再推进的地方暂停工作，
+        // 因此在后面重新恢复 future 工作的时候，并不会再从开头开始工作，
+        // 因此已经被初始化的栈不会再初始化一遍，writer 指向的是旧的栈空间地址。
+        //
+        // 自引用结构在这里表现为：在 future 内部的 writer 指向 future 所处的某一固定位置，
+        // 而当 future 移动到别处时，其内部的 writer 并不会也跟着改变其指向。
         spawn(future);
 
         loop {

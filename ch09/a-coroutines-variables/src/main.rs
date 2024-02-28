@@ -41,12 +41,15 @@ enum State0 {
     Resolved,
 }
 
+/// 增加一个堆栈，保存 coroutine 块中的 counter 变量，
+/// 如果有第 2 个需要保存、恢复的变量，则会再增加一个字段，以此类推。
 #[derive(Default)]
 struct Stack0 {
     counter: Option<usize>,
 }
 
 struct Coroutine0 {
+    // 协程增加一个堆栈，用以保存状态之间需要保存、恢复的变量
     stack: Stack0,
     state: State0,
 }
@@ -66,6 +69,7 @@ impl Future for Coroutine0 {
         match self.state {
                 State0::Start => {
                     // initialize stack (hoist variables)
+                    // 在 Start 状态的一开头就先初始化堆栈
                     self.stack.counter = Some(0);
                     // ---- Code you actually wrote ----
                     println!("Program starting");
@@ -82,16 +86,20 @@ impl Future for Coroutine0 {
                     match f1.poll(waker) {
                         PollState::Ready(txt) => {
                             // Restore stack
+                            // 进入状态一开始就从堆栈读取并恢复变量的值
+                            // 注意使用了 take ，执行完堆栈的值就变成了 None
                             let mut counter = self.stack.counter.take().unwrap();
 
                             // ---- Code you actually wrote ----
                             println!("{txt}");
+                            // 这里变量在这个状态就可以正常使用了
                             counter += 1;
                             // ---------------------------------
                             let fut2 = Box::new( http::Http::get("/400/HelloAsyncAwait"));
                             self.state = State0::Wait2(fut2);
 
                             // save stack
+                            // 在状态末尾保存堆栈
                             self.stack.counter = Some(counter);
                         }
                         PollState::NotReady => break PollState::NotReady,

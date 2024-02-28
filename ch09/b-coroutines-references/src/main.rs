@@ -44,6 +44,10 @@ enum State0 {
 #[derive(Default)]
 struct Stack0 {
     buffer: Option<String>,
+    // 注意 writer 不是 Option<&mut String> ，因为如果是的话，
+    // 则 writer 引用了 buffer ，就变成了一个自引用结构，
+    // 无法正确表达生命周期（该引用的生命周期需要不长于结构体对象），
+    // 所以只能用裸指针
     writer: Option<*mut String>,
 }
 
@@ -85,6 +89,7 @@ impl Future for Coroutine0 {
                     match f1.poll(waker) {
                         PollState::Ready(txt) => {
                             // Restore stack
+                            // 注意这里使用了 take ，取了 writer 裸指针本身的所有权
                             let writer = unsafe { &mut *self.stack.writer.take().unwrap() };
 
                             // ---- Code you actually wrote ----
@@ -104,6 +109,7 @@ impl Future for Coroutine0 {
                     match f2.poll(waker) {
                         PollState::Ready(txt) => {
                             // Restore stack
+                            // 这里取得的是 &String 的所有权，而不是 String 的
                             let buffer = self.stack.buffer.as_ref().take().unwrap();
                             let writer = unsafe { &mut *self.stack.writer.take().unwrap() };
 
@@ -115,6 +121,7 @@ impl Future for Coroutine0 {
                             self.state = State0::Resolved;
 
                             // Save stack / free resources
+                            // 取掉 String 的所有权
                             let _ = self.stack.buffer.take();
 
                             break PollState::Ready(String::new());
