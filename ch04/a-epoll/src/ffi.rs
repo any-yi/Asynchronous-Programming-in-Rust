@@ -1,3 +1,13 @@
+//! # FIXES:
+//! The number is identical to the number in the GitHub issue tracker
+//!
+//! ## FIX ISSUE #5
+//! See: https://github.com/PacktPublishing/Asynchronous-Programming-in-Rust/issues/5
+//! Readers reported wrong results when running the example on ARM64 instruction set
+//! (aarch64). The reason turned out to be that the `Event` struct is only `repr(packed)`
+//! on `x86-64` systems due to backwards compatibility. Fixed by conditionally
+//! compiling the #[repr(packed)] attribute.
+
 // 添加事件到事件队列
 pub const EPOLL_CTL_ADD: i32 = 1;
 // 对文件句柄上的读取操作感兴趣
@@ -31,7 +41,9 @@ extern "C" {
 // 则操作系统以 pack 方式填数据会把原本属于 epoll_data 的 64 位数据从填充区开头开始填 32 位，
 // 并把剩下的 32 位填到 epoll_data 中去，填了脏数据。
 #[derive(Debug)]
-#[repr(C, packed)]
+#[repr(C)]
+// FIX #5
+#[cfg_attr(target_arch = "x86_64", repr(packed))]
 pub struct Event {
     // 标识事件类型；还可以通过这个字段修改收到通知时的行为和时间。
     pub(crate) events: u32,

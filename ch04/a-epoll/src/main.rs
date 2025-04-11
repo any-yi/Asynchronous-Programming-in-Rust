@@ -1,6 +1,28 @@
+//! # FIXES:
+//! The number is identical to the number in the GitHub issue tracker
+//!
+//! ## FIX ISSUE #4:
+//! See:https://github.com/PacktPublishing/Asynchronous-Programming-in-Rust/issues/4
+//! Some users reported false event notification causing the counter to increase
+//! due to the OS reporting a READ event after we already read the TcpStream to EOF.
+//! This caused the counter to increment on the same TcpStream twice and thereby
+//! exiting the program before all events were handled.
+//!
+//! The fix for this is to account for false wakeups which is an easy fix but requires
+//! a few changes to the example. I've added an explicit comment: "FIX #4", the places
+//! I made a change so it's easy to spot the differences to the example code in the book.
+//!
+//! ## PR #19:
+//! To make this example work with Docker for Mac users there is a small change
+//! to the code where you can override "localhost" by passing in a command line
+//! argument.
+
 use std::{
+    // FIX #4 (import `HashSet``)
+    collections::HashSet,
     io::{self, Read, Result, Write},
     net::TcpStream,
+    env
 };
 
 use ffi::Event;
@@ -20,7 +42,12 @@ fn get_req(path: &str) -> String {
     )
 }
 
-fn handle_events(events: &[Event], streams: &mut [TcpStream]) -> Result<usize> {
+fn handle_events(
+    events: &[Event],
+    streams: &mut [TcpStream],
+    // FIX #4: accepts a set of handled events as argument
+    handled: &mut HashSet<usize>,
+) -> Result<usize> {
     let mut handled_events = 0;
     // 对传入的所有操作系统返回的事件进行循环处理
     for event in events {
@@ -35,6 +62,11 @@ fn handle_events(events: &[Event], streams: &mut [TcpStream]) -> Result<usize> {
             match streams[index].read(&mut data) {
                 // 读到了这条流的末尾，把处理流的计数+1，退出读取当前流
                 Ok(n) if n == 0 => {
+                    // FIX #4
+                    // `insert` returns false if the value already existed in the set.
+                    if !handled.insert(index) {
+                        break;
+                    }
                     handled_events += 1;
                     break;
                 }
@@ -47,7 +79,7 @@ fn handle_events(events: &[Event], streams: &mut [TcpStream]) -> Result<usize> {
                 Err(e) if e.kind() == io::ErrorKind::WouldBlock => break,
                 // this was not in the book example, but it's a error condition
                 // you probably want to handle in some way (either by breaking
-                // out of the loop or trying a new read call immidiately)
+                // out of the loop or trying a new read call immediately)
                 Err(e) if e.kind() == io::ErrorKind::Interrupted => break,
                 Err(e) => return Err(e),
             }
@@ -62,7 +94,13 @@ fn main() -> Result<()> {
     let n_events = 5;
 
     let mut streams = vec![];
-    let addr = "localhost:8080";
+
+    // FIX #19: Allow to override the base URL by passing it as a command line argument
+    let base_url = env::args()
+        .nth(1)
+        .unwrap_or_else(|| String::from("localhost"));
+
+    let addr = format!("{}:8080", &base_url);
 
     for i in 0..n_events {
         // 拼接 HTTP GET 请求字符串
@@ -71,7 +109,7 @@ fn main() -> Result<()> {
         let url_path = format!("/{delay}/request-{i}");
         let request = get_req(&url_path);
         // 初始化网络连接对象
-        let mut stream = std::net::TcpStream::connect(addr)?;
+        let mut stream = std::net::TcpStream::connect(&addr)?;
         // 禁用 TcpStream 的 Nagle 算法（把 TCP_NODELAY 标志设置为 true ）
         stream.set_nonblocking(true)?;
 
@@ -85,6 +123,9 @@ fn main() -> Result<()> {
 
         streams.push(stream);
     }
+
+    // FIX #4: store the handled IDs
+    let mut handled_ids = HashSet::new();
 
     let mut handled_events = 0;
     // 接收 5 次事件提醒
@@ -102,7 +143,8 @@ fn main() -> Result<()> {
 
         // 处理接受到的操作系统返回的 events，
         // handle_events 函数返回本次处理了多少个事件，将其累加到用于循环判断的变量上
-        handled_events += handle_events(&events, &mut streams)?;
+        // ------------------------------------------------------⌄ FIX #4 (new signature)
+        handled_events += handle_events(&events, &mut streams, &mut handled_ids)?;
     }
 
     println!("FINISHED");

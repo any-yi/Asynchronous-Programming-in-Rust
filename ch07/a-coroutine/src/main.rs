@@ -1,6 +1,6 @@
 use std::{
     thread,
-    time::Duration,
+    time::Duration
 };
 
 mod future;

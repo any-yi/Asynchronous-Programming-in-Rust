@@ -1,15 +1,18 @@
-# a-epoll-mio
+# b-epoll-mio
 
 This create contains the example code for chapter 4, but instead of using
 our own queue, we use one created by [mio](https://github.com/tokio-rs/mio). Since we modelled our own code after
 mio you only need to make a few very minor changes to get it working which I've
 commented and marked out as clearly as I can.
 
+If running on a Mac system (which only supports kqueue but not epoll), docker
+can be used to run the example by running the epoll_mio_docker.sh script
+
 You can run the example by simply writing `cargo run`
 
 ## Note
 
-There is one downside of having a local server on the same machine to mimmic
+There is one downside of having a local server on the same machine to mimic
 real life behavior. The network will never be slow, and packages will never
 need to be resent. Latency is not a problem either.
 
@@ -20,11 +23,11 @@ so much data that the OS needs to do extra work to handle it.
 
 You can reproduce it if you make som minor changes to the delayserver code
 as well as the program in main.rs as outlined below. Simply copy and replace
-the appropirate functions with these will do it.
+the appropriate functions with these will do it.
 
 
 First, change the `delay` function on the delayserver to return huge amount of fill data
-(enough to force a `WouldBlock` error on the reciever):
+(enough to force a `WouldBlock` error on the receiver):
 
 ```rust
 #[get("/{delay}/{message}")]
@@ -73,4 +76,3 @@ fn handle_events(events: &[Event], streams: &mut [TcpStream]) -> Result<usize> {
     Ok(handled_events)
 }
 ```
-

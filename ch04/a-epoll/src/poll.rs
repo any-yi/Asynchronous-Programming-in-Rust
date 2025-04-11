@@ -48,7 +48,7 @@ impl Poll {
             return Err(io::Error::last_os_error());
         };
 
-        // This is safe because epol_wait ensures that `res` events are assigned.
+        // This is safe because epoll_wait ensures that `res` events are assigned.
         // 操作系统向传入本 poll 方法的 events 向量写了内容，但没有写其 len 字段
         unsafe { events.set_len(res as usize) };
         Ok(())
